@@ -16,13 +16,22 @@ If you are confused by the above, you might want to read up on AD FS first. For 
 
 ## Installation
 
-ADFSpoof is written in Python 3.
+ADFSpoof is written in Python 3 and works with Python 3.8+.
 
-~~ADFSpoof requires the installation of a custom fork of the Python Cryptography package, available [here](https://github.com/dmb2168/cryptography). Microsoft did not exactly follow the RFC for Key Deriviation :wink:, so a fork of the package was needed.~~ The modified key derivation function has been ported to work with the newer versions of cryptography lib.
+**Note:** On Debian/Ubuntu you may need to install system dependencies first:
 
-All requirements are captured in the repo's requirements.txt.
+```
+sudo apt install python3-venv libxml2-dev libxslt-dev
+```
 
-`pip install -r requirements.txt`
+```
+git clone https://github.com/Xitro01/ADFSpoof.git
+cd ADFSpoof
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python ADFSpoof.py -h
+```
 
 ## Usage
 
