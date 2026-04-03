@@ -6,14 +6,15 @@ from __future__ import absolute_import, division, print_function
 
 from enum import Enum
 
-from six.moves import range
-
-from cryptography import utils
 from cryptography.exceptions import (
     AlreadyFinalized, InvalidKey, UnsupportedAlgorithm, _Reasons
 )
 from cryptography.hazmat.primitives import constant_time, hashes, hmac
 from cryptography.hazmat.primitives.kdf import KeyDerivationFunction
+
+
+def _int_to_bytes(value, length):
+    return value.to_bytes(length, byteorder='big')
 
 
 class Mode(Enum):
@@ -25,19 +26,12 @@ class CounterLocation(Enum):
     AfterFixed = "after_fixed"
 
 
-@utils.register_interface(KeyDerivationFunction)
-class KBKDFHMAC(object):
+class KBKDFHMAC(KeyDerivationFunction):
     def __init__(self, algorithm, mode, length, rlen, llen,
-                 location, label, context, fixed, backend):
+                 location, label, context, fixed, backend=None):
         if not isinstance(algorithm, hashes.HashAlgorithm):
             raise UnsupportedAlgorithm(
                 "Algorithm supplied is not a supported hash algorithm.",
-                _Reasons.UNSUPPORTED_HASH
-            )
-
-        if not backend.hmac_supported(algorithm):
-            raise UnsupportedAlgorithm(
-                "Algorithm supplied is not a supported hmac algorithm.",
                 _Reasons.UNSUPPORTED_HASH
             )
 
@@ -66,8 +60,10 @@ class KBKDFHMAC(object):
         if context is None:
             context = b''
 
-        utils._check_bytes("label", label)
-        utils._check_bytes("context", context)
+        if not isinstance(label, bytes):
+            raise TypeError("label must be bytes")
+        if not isinstance(context, bytes):
+            raise TypeError("context must be bytes")
         self._algorithm = algorithm
         self._mode = mode
         self._length = length
@@ -76,7 +72,6 @@ class KBKDFHMAC(object):
         self._location = location
         self._label = label
         self._context = context
-        self._backend = backend
         self._used = False
         self._fixed_data = fixed
 
@@ -84,7 +79,7 @@ class KBKDFHMAC(object):
         if not isinstance(value, int):
             raise TypeError('value must be of type int')
 
-        value_bin = utils.int_to_bytes(1, value)
+        value_bin = _int_to_bytes(1, value)
         if not 1 <= len(value_bin) <= 4:
             return False
         return True
@@ -93,7 +88,8 @@ class KBKDFHMAC(object):
         if self._used:
             raise AlreadyFinalized
 
-        utils._check_byteslike("key_material", key_material)
+        if not isinstance(key_material, (bytes, bytearray, memoryview)):
+            raise TypeError("key_material must be bytes-like")
         self._used = True
 
         # inverse floor division (equivalent to ceiling)
@@ -105,14 +101,14 @@ class KBKDFHMAC(object):
         # larger than 2^r-1, where r <= 32 is the binary length of the counter
         # This ensures that the counter values used as an input to the
         # PRF will not repeat during a particular call to the KDF function.
-        r_bin = utils.int_to_bytes(1, self._rlen)
+        r_bin = _int_to_bytes(1, self._rlen)
         if rounds > pow(2, len(r_bin) * 8) - 1:
             raise ValueError('There are too many iterations.')
 
         for i in range(1, rounds + 1):
-            h = hmac.HMAC(key_material, self._algorithm, backend=self._backend)
+            h = hmac.HMAC(key_material, self._algorithm)
 
-            counter = utils.int_to_bytes(i, self._rlen)
+            counter = _int_to_bytes(i, self._rlen)
             if self._location == CounterLocation.BeforeFixed:
                 h.update(counter)
 
@@ -129,7 +125,7 @@ class KBKDFHMAC(object):
         if self._fixed_data and isinstance(self._fixed_data, bytes):
             return self._fixed_data
 
-        l_val = utils.int_to_bytes(self._length, self._llen)
+        l_val = _int_to_bytes(self._length, self._llen)
 
         return b"".join([self._label, b"\x00", self._context, l_val])
 

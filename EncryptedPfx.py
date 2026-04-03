@@ -1,4 +1,3 @@
-from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import hashes, hmac
 from microsoft_kbkdf import (
@@ -26,9 +25,8 @@ class EncryptedPFX():
         self._derive_keys(self.decryption_key)
         self._verify_ciphertext()
 
-        backend = default_backend()
         iv = self.iv.asOctets()
-        cipher = Cipher(algorithms.AES(self.encryption_key), modes.CBC(iv), backend=backend)
+        cipher = Cipher(algorithms.AES(self.encryption_key), modes.CBC(iv))
         decryptor = cipher.decryptor()
         plain_pfx = decryptor.update(self.ciphertext) + decryptor.finalize()
 
@@ -37,8 +35,7 @@ class EncryptedPFX():
         return plain_pfx
 
     def _verify_ciphertext(self):
-        backend = default_backend()
-        h = hmac.HMAC(self.mac_key, hashes.SHA256(), backend=backend)
+        h = hmac.HMAC(self.mac_key, hashes.SHA256())
         stream = self.iv.asOctets() + self.ciphertext
         h.update(stream)
         mac_code = h.finalize()
@@ -54,7 +51,6 @@ class EncryptedPFX():
     def _derive_keys(self, password=None):
         label = encode(self.encryption_oid) + encode(self.mac_oid)
         context = self.nonce.asOctets()
-        backend = default_backend()
 
         kdf = KBKDFHMAC(
             algorithm=hashes.SHA256(),
@@ -66,7 +62,6 @@ class EncryptedPFX():
             label=label,
             context=context,
             fixed=None,
-            backend=backend
         )
 
         key = kdf.derive(password)

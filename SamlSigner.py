@@ -2,7 +2,6 @@ from cryptography.hazmat.primitives.serialization import pkcs12
 import string
 from lxml import etree
 from signxml import XMLSigner
-from cryptography.hazmat.backends import default_backend
 import re
 
 
@@ -13,7 +12,7 @@ class SAMLSigner():
             self.saml_template = infile.read()
 
     def load_pkcs12(self, data, password):
-        cert = pkcs12.load_key_and_certificates(data, password, default_backend())
+        cert = pkcs12.load_key_and_certificates(data, password)
         return cert[0], cert[1]
 
     def sign_XML(self, params, id_attribute, algorithm, digest):
